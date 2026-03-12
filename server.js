@@ -113,6 +113,23 @@ function isRTL(langCode) {
   return RTL_LANGS.includes(langCode.toLowerCase().split('-')[0]);
 }
 
+// ── Fatal error detection ──────────────────────────────────────────────────
+function isFatalError(errMessage) {
+  const msg = (errMessage || '').toLowerCase();
+  return (
+    msg.includes('credit balance') ||
+    msg.includes('insufficient_quota') ||
+    msg.includes('billing') ||
+    msg.includes('invalid api key') ||
+    msg.includes('invalid_api_key') ||
+    msg.includes('authentication') ||
+    msg.includes('unauthorized') ||
+    msg.includes('403') ||
+    msg.includes('permission denied') ||
+    msg.includes('account has been disabled')
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
@@ -259,21 +276,7 @@ app.post('/api/translate', async (req, res) => {
         db2.jobs[jobId].chunks[i].error  = err.message;
 
         // ── Fatal error detection: stop the whole job immediately ──────────
-        // These errors will never resolve by retrying the next chunk.
-        const msg = err.message.toLowerCase();
-        const isFatal = (
-          msg.includes('credit balance') ||
-          msg.includes('insufficient_quota') ||
-          msg.includes('billing') ||
-          msg.includes('invalid api key') ||
-          msg.includes('invalid_api_key') ||
-          msg.includes('authentication') ||
-          msg.includes('unauthorized') ||
-          (msg.includes('403')) ||
-          msg.includes('permission denied') ||
-          msg.includes('account has been disabled')
-        );
-        if (isFatal) {
+        if (isFatalError(err.message)) {
           db2.jobs[jobId].status = 'failed';
           db2.jobs[jobId].fatalError = err.message;
           saveDB(db2);
@@ -365,7 +368,8 @@ app.delete('/api/jobs/:jobId', (req, res) => {
 
 // ── POST /api/retry-failed/:jobId ─────────────────────────────────────────
 app.post('/api/retry-failed/:jobId', async (req, res) => {
-  const { apiKey, baseUrl } = req.body;
+  // Allow overriding provider/model/key at retry time (e.g. user switched provider)
+  const { apiKey, baseUrl, provider: overrideProvider, model: overrideModel } = req.body;
   const db  = loadDB();
   const job = db.jobs[req.params.jobId];
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -377,18 +381,21 @@ app.post('/api/retry-failed/:jobId', async (req, res) => {
   if (failedIndices.length === 0)
     return res.json({ message: 'No failed chunks to retry' });
 
-  // Reset failed chunks
+  // Reset failed chunks and clear any previous fatal error
   failedIndices.forEach(i => {
     job.chunks[i].status = 'pending';
     delete job.chunks[i].error;
   });
   job.status = 'translating';
+  delete job.fatalError;
   saveDB(db);
 
   res.json({ retrying: failedIndices.length });
 
-  const providerModule = PROVIDERS[job.config.provider];
-  const { model, sourceLang, targetLang, domain, glossary, customPrompt } = job.config;
+  const activeProvider = overrideProvider || job.config.provider;
+  const providerModule = PROVIDERS[activeProvider];
+  const { sourceLang, targetLang, domain, glossary, customPrompt } = job.config;
+  const model = overrideModel || job.config.model;
 
   (async () => {
     for (const i of failedIndices) {
@@ -425,9 +432,19 @@ app.post('/api/retry-failed/:jobId', async (req, res) => {
         if (done === db3.jobs[job.id].chunks.length) db3.jobs[job.id].status = 'done';
         saveDB(db3);
       } catch (err) {
+        console.error(`Retry chunk ${i} failed:`, err.message);
         const db3 = loadDB();
         db3.jobs[job.id].chunks[i].status = 'failed';
         db3.jobs[job.id].chunks[i].error  = err.message;
+
+        if (isFatalError(err.message)) {
+          db3.jobs[job.id].status = 'failed';
+          db3.jobs[job.id].fatalError = err.message;
+          saveDB(db3);
+          console.error('Fatal error in retry — stopping job:', err.message);
+          break;
+        }
+
         saveDB(db3);
       }
     }
