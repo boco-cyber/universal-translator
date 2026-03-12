@@ -855,11 +855,21 @@ async function pollStatus() {
     // Update chunk dots using index from status — we re-fetch chunk statuses via result endpoint
     updateChunkDots(data);
 
+    // Fatal error — show banner and stop immediately
+    if (data.fatalError) {
+      stopPolling();
+      showFatalError(data.fatalError);
+      return;
+    }
+
     if (data.status === 'done') {
       stopPolling();
       document.getElementById('cancelBtn').style.display = 'none';
       if (data.failed > 0) document.getElementById('retryBtn').style.display = '';
       loadResult();
+    } else if (data.status === 'failed') {
+      stopPolling();
+      showFatalError(data.fatalError || 'Translation stopped due to a fatal error.');
     } else if (data.status === 'cancelled') {
       stopPolling();
     } else if (data.failed > 0) {
@@ -868,6 +878,38 @@ async function pollStatus() {
   } catch (err) {
     console.error('Poll error:', err);
   }
+}
+
+function showFatalError(msg) {
+  // Remove any existing banner
+  document.getElementById('fatalBanner')?.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'fatalBanner';
+  banner.style.cssText = [
+    'background:rgba(248,113,113,.12)',
+    'border:1px solid var(--red)',
+    'border-radius:10px',
+    'padding:14px 18px',
+    'margin-top:12px',
+    'font-size:.88rem',
+    'line-height:1.5',
+  ].join(';');
+
+  // Detect common errors and give friendly advice
+  let advice = '';
+  const lower = msg.toLowerCase();
+  if (lower.includes('credit') || lower.includes('billing') || lower.includes('quota')) {
+    advice = ' → <strong>Add credits</strong> at <a href="https://console.anthropic.com/settings/billing" target="_blank">console.anthropic.com/settings/billing</a>, or switch to a different provider in the sidebar.';
+  } else if (lower.includes('api key') || lower.includes('authentication') || lower.includes('unauthorized')) {
+    advice = ' → Check that your API key is correct in Settings.';
+  } else if (lower.includes('403') || lower.includes('permission')) {
+    advice = ' → Your API key may not have permission to use this model.';
+  }
+
+  banner.innerHTML = `<strong>⛔ Translation stopped:</strong> ${escHtml(msg)}${advice}`;
+  document.getElementById('progressCard').appendChild(banner);
+  document.getElementById('cancelBtn').style.display = 'none';
 }
 
 async function updateChunkDots(statusData) {

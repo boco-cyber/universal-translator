@@ -257,6 +257,30 @@ app.post('/api/translate', async (req, res) => {
         const db2 = loadDB();
         db2.jobs[jobId].chunks[i].status = 'failed';
         db2.jobs[jobId].chunks[i].error  = err.message;
+
+        // ── Fatal error detection: stop the whole job immediately ──────────
+        // These errors will never resolve by retrying the next chunk.
+        const msg = err.message.toLowerCase();
+        const isFatal = (
+          msg.includes('credit balance') ||
+          msg.includes('insufficient_quota') ||
+          msg.includes('billing') ||
+          msg.includes('invalid api key') ||
+          msg.includes('invalid_api_key') ||
+          msg.includes('authentication') ||
+          msg.includes('unauthorized') ||
+          (msg.includes('403')) ||
+          msg.includes('permission denied') ||
+          msg.includes('account has been disabled')
+        );
+        if (isFatal) {
+          db2.jobs[jobId].status = 'failed';
+          db2.jobs[jobId].fatalError = err.message;
+          saveDB(db2);
+          console.error('Fatal error — stopping job:', err.message);
+          break;
+        }
+
         saveDB(db2);
       }
     }
@@ -280,6 +304,7 @@ app.get('/api/status/:jobId', (req, res) => {
     done, failed, total,
     rtl: job.rtl,
     config: job.config,
+    fatalError: job.fatalError || null,
   });
 });
 
