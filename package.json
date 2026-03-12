@@ -1,0 +1,44 @@
+{
+  "name": "universal-translator",
+  "version": "1.0.0",
+  "description": "Universal AI Translation App — translate any document with any AI provider",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-extractors": "pip install pdfplumber python-docx"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "mammoth": "^1.6.0",
+    "pdf-parse": "^1.1.1",
+    "node-fetch": "^2.7.0",
+    "epub2": "^3.0.2",
+    "node-html-parser": "^6.1.12",
+    "srt-parser-2": "^1.2.3",
+    "docx": "^8.5.0",
+    "adm-zip": "^0.5.10",
+    "uuid": "^9.0.0",
+    "cors": "^2.8.5",
+    "tiktoken": "^1.0.15"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "pkg": {
+    "assets": [
+      "index.html",
+      "data/**/*",
+      "node_modules/pdf-parse/lib/**/*"
+    ],
+    "scripts": [
+      "providers/**/*.js",
+      "extractors/**/*.js"
+    ],
+    "targets": ["node18-win-x64"],
+    "outputPath": "dist"
+  },
+  "keywords": ["translation", "ai", "anthropic", "openai", "gemini", "ollama"],
+  "license": "MIT"
+}

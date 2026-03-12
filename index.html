@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Universal AI Translator</title>
+<style>
+/* ═══════════════ RESET & BASE ═══════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0f1117;
+  --surface:  #1a1d27;
+  --card:     #21253a;
+  --border:   #2e3350;
+  --accent:   #5b72ff;
+  --accent2:  #a78bfa;
+  --green:    #34d399;
+  --red:      #f87171;
+  --yellow:   #fbbf24;
+  --text:     #e8eaf6;
+  --muted:    #8892b0;
+  --radius:   10px;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+a { color: var(--accent); }
+
+/* ═══════════════ LAYOUT ═══════════════ */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; }
+header .badge {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+nav button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .88rem;
+  transition: all .15s;
+}
+nav button.active, nav button:hover {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+main {
+  flex: 1;
+  display: flex;
+  gap: 0;
+}
+.sidebar {
+  width: 300px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.content {
+  flex: 1;
+  padding: 24px 28px;
+  overflow-y: auto;
+}
+
+/* ═══════════════ SIDEBAR ═══════════════ */
+.sidebar-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-section h3 {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ═══════════════ FORM ELEMENTS ═══════════════ */
+label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 4px; }
+input, select, textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: .88rem;
+  outline: none;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 80px; }
+.form-group { margin-bottom: 12px; }
+
+/* ═══════════════ BUTTONS ═══════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.15); }
+.btn-danger  { background: var(--red); color: #fff; }
+.btn-danger:hover { filter: brightness(1.1); }
+.btn-ghost   { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--accent); }
+.btn-sm { padding: 5px 12px; font-size: .8rem; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ═══════════════ CARDS ═══════════════ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══════════════ DROP ZONE ═══════════════ */
+#dropZone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 20px;
+}
+#dropZone:hover, #dropZone.dragover {
+  border-color: var(--accent);
+  background: rgba(91,114,255,.06);
+}
+#dropZone .icon { font-size: 2.5rem; margin-bottom: 10px; }
+#dropZone .hint { color: var(--muted); font-size: .84rem; margin-top: 6px; }
+#fileInput { display: none; }
+
+/* ═══════════════ PROGRESS ═══════════════ */
+.progress-bar-wrap {
+  background: var(--bg);
+  border-radius: 99px;
+  height: 8px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 99px;
+  transition: width .3s ease;
+}
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: .78rem;
+  color: var(--muted);
+}
+.chunk-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+.chunk-dot {
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  background: var(--border);
+  cursor: default;
+  transition: background .2s;
+}
+.chunk-dot.done        { background: var(--green); }
+.chunk-dot.failed      { background: var(--red); }
+.chunk-dot.translating { background: var(--yellow); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* ═══════════════ RESULT ═══════════════ */
+.result-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+.result-tabs button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .82rem;
+}
+.result-tabs button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.result-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  white-space: pre-wrap;
+  font-size: .88rem;
+  line-height: 1.7;
+  max-height: 500px;
+  overflow-y: auto;
+}
+.result-box.rtl { direction: rtl; text-align: right; }
+.bilingual-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: .85rem;
+  line-height: 1.6;
+}
+.bilingual-pair .original { color: var(--muted); }
+.bilingual-pair .translated { }
+.bilingual-pair .translated.rtl { direction: rtl; text-align: right; }
+
+/* ═══════════════ JOBS LIST ═══════════════ */
+.job-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .15s;
+  border: 1px solid transparent;
+}
+.job-item:hover { background: var(--card); }
+.job-item.active { background: var(--card); border-color: var(--accent); }
+.job-item .job-name { font-size: .84rem; font-weight: 600; }
+.job-item .job-meta { font-size: .72rem; color: var(--muted); }
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.done        { background: var(--green); }
+.status-dot.translating { background: var(--yellow); animation: pulse 1s infinite; }
+.status-dot.uploaded    { background: var(--muted); }
+.status-dot.failed      { background: var(--red); }
+.status-dot.cancelled   { background: var(--red); }
+
+/* ═══════════════ ESTIMATE BADGE ═══════════════ */
+.estimate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(251,191,36,.1);
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: .82rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* ═══════════════ GLOSSARY ═══════════════ */
+.glossary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.glossary-row input { padding: 6px 10px; font-size: .82rem; }
+.glossary-row button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--red);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: .8rem;
+}
+.glossary-row button:hover { background: rgba(248,113,113,.1); }
+
+/* ═══════════════ TABS (pages) ═══════════════ */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ═══════════════ MISC ═══════════════ */
+.flex-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.text-green { color: var(--green); }
+.text-red   { color: var(--red); }
+.text-muted { color: var(--muted); font-size: .82rem; }
+hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <span style="font-size:1.5rem">🌐</span>
+  <h1>Universal AI Translator</h1>
+  <span class="badge">v1.0</span>
+  <nav>
+    <button class="active" onclick="showPage('translate')">Translate</button>
+    <button onclick="showPage('history')">History</button>
+    <button onclick="showPage('settings')">Settings</button>
+  </nav>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<main>
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="sidebar">
+
+    <!-- Provider -->
+    <div class="sidebar-section">
+      <h3>Provider</h3>
+      <div class="form-group">
+        <label>AI Provider</label>
+        <select id="providerSelect" onchange="onProviderChange()">
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="openai">OpenAI (GPT)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="ollama">Ollama (Local / Free)</option>
+          <option value="openai-custom">Custom OpenAI-compatible</option>
+        </select>
+      </div>
+      <div class="form-group" id="modelGroup">
+        <label>Model</label>
+        <select id="modelSelect"></select>
+      </div>
+      <div class="form-group" id="apiKeyGroup">
+        <label>API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-…"/>
+      </div>
+      <div class="form-group" id="baseUrlGroup" style="display:none">
+        <label>Base URL</label>
+        <input type="text" id="baseUrl" placeholder="http://localhost:11434"/>
+      </div>
+    </div>
+
+    <!-- Languages -->
+    <div class="sidebar-section">
+      <h3>Languages</h3>
+      <div class="form-group">
+        <label>Source Language</label>
+        <select id="sourceLang"></select>
+      </div>
+      <div class="form-group">
+        <label>Target Language</label>
+        <select id="targetLang"></select>
+      </div>
+      <div class="form-group">
+        <label>Domain / Register</label>
+        <select id="domain">
+          <option value="">General</option>
+          <option value="literary">Literary</option>
+          <option value="legal">Legal</option>
+          <option value="medical">Medical</option>
+          <option value="theological">Theological / Religious</option>
+          <option value="technical">Technical / Scientific</option>
+          <option value="casual">Casual / Conversational</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Advanced -->
+    <div class="sidebar-section">
+      <h3>Advanced</h3>
+      <div class="form-group">
+        <label>Chunk Size (chars)</label>
+        <input type="number" id="chunkSize" value="3000" min="500" max="8000" step="500"/>
+      </div>
+      <div class="form-group">
+        <label>Custom System Prompt</label>
+        <textarea id="customPrompt" placeholder="Leave blank for auto-generated prompt…"></textarea>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ─── CONTENT ─── -->
+  <div class="content">
+
+    <!-- ══ PAGE: Translate ══ -->
+    <div class="page active" id="page-translate">
+
+      <!-- Drop Zone -->
+      <div id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleDrop(event)">
+        <div class="icon">📄</div>
+        <div>Drop a document here or <strong>click to browse</strong></div>
+        <div class="hint">PDF · DOCX · TXT · EPUB · HTML · SRT</div>
+      </div>
+      <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.epub,.html,.htm,.srt"
+             onchange="handleFileSelect(event)"/>
+
+      <!-- Language Detection Modal -->
+      <div id="detectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;display:none;align-items:center;justify-content:center">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;min-width:340px;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+          <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px">🔍 Language Detected</div>
+          <p style="color:var(--muted);font-size:.85rem;margin-bottom:18px">We detected the source language. Choose a target to translate to:</p>
+          <div class="form-group">
+            <label>Detected Source Language</label>
+            <select id="modalSourceLang" style="background:var(--surface)"></select>
+          </div>
+          <div class="form-group">
+            <label>Translate To</label>
+            <select id="modalTargetLang" style="background:var(--surface)"></select>
+          </div>
+          <div class="flex-row" style="margin-top:18px">
+            <button class="btn btn-primary" onclick="applyModalLangs()">✔ Apply &amp; Continue</button>
+            <button class="btn btn-ghost" onclick="closeDetectModal()">Skip</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Info -->
+      <div id="fileInfo" style="display:none" class="card">
+        <div class="card-title">📎 <span id="fileName"></span></div>
+        <div class="flex-row" style="margin-bottom:10px">
+          <span class="text-muted" id="fileStats"></span>
+          <span id="detectedLangBadge" style="display:none;background:rgba(91,114,255,.15);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:2px 10px;font-size:.78rem;font-weight:600;margin-left:8px"></span>
+        </div>
+        <div id="estimateBadge" class="estimate-badge" style="display:none">
+          💰 <span id="estimateText">Estimating…</span>
+        </div>
+        <div class="flex-row">
+          <button class="btn btn-primary" id="startBtn" onclick="startTranslation()">
+            ▶ Start Translation
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="clearJob()">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="progressCard" style="display:none" class="card">
+        <div class="card-title">⚡ Translation Progress</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar" style="width:0%"></div>
+        </div>
+        <div class="progress-stats">
+          <span id="progressText">0 / 0 chunks</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="chunk-grid" id="chunkGrid"></div>
+        <div class="flex-row" style="margin-top:12px">
+          <button class="btn btn-danger btn-sm" id="cancelBtn" onclick="cancelTranslation()">⏹ Cancel</button>
+          <button class="btn btn-ghost btn-sm" id="retryBtn" style="display:none" onclick="retryFailed()">🔄 Retry Failed</button>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div id="resultCard" style="display:none" class="card">
+        <div class="card-title">✅ Translation Complete</div>
+        <div class="result-tabs">
+          <button class="active" onclick="showResultTab('translated', this)">Translated</button>
+          <button onclick="showResultTab('original', this)">Original</button>
+          <button onclick="showResultTab('bilingual', this)">Bilingual</button>
+        </div>
+        <div id="result-translated" class="result-box"></div>
+        <div id="result-original"   class="result-box" style="display:none"></div>
+        <div id="result-bilingual"  style="display:none"></div>
+        <hr/>
+        <div class="flex-row">
+          <button class="btn btn-ghost btn-sm" onclick="downloadResult('txt')">⬇ Download TXT</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadResult('bilingual-txt')">⬇ Download Bilingual TXT</button>
+        </div>
+      </div>
+
+    </div><!-- /page-translate -->
+
+    <!-- ══ PAGE: History ══ -->
+    <div class="page" id="page-history">
+      <div class="card">
+        <div class="card-title flex-row">
+          📋 Translation History
+          <span class="spacer"></span>
+          <button class="btn btn-ghost btn-sm" onclick="loadHistory()">↻ Refresh</button>
+        </div>
+        <div id="historyList"><p class="text-muted">Loading…</p></div>
+      </div>
+    </div>
+
+    <!-- ══ PAGE: Settings ══ -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-title">🔑 API Keys</div>
+        <p class="text-muted" style="margin-bottom:12px">Keys are stored only in your browser's localStorage.</p>
+        <div class="form-group"><label>Anthropic API Key</label>
+          <input type="password" id="s-anthropic" placeholder="sk-ant-…"/></div>
+        <div class="form-group"><label>OpenAI API Key</label>
+          <input type="password" id="s-openai" placeholder="sk-…"/></div>
+        <div class="form-group"><label>Google Gemini API Key</label>
+          <input type="password" id="s-gemini" placeholder="AIza…"/></div>
+        <button class="btn btn-primary btn-sm" onclick="saveApiKeys()">Save Keys</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📖 Glossary</div>
+        <p class="text-muted" style="margin-bottom:12px">Locked term pairs — the AI will never deviate from these.</p>
+        <div id="glossaryRows"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addGlossaryRow()">+ Add Term</button>
+        <div style="margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveGlossary()">Save Glossary</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const LANGUAGES = [
+  ['auto',  'Auto-detect'],
+  ['en',    'English'],
+  ['ar',    'Arabic (عربي)'],
+  ['he',    'Hebrew (עברית)'],
+  ['fa',    'Farsi (فارسی)'],
+  ['ur',    'Urdu (اردو)'],
+  ['fr',    'French'],
+  ['es',    'Spanish'],
+  ['de',    'German'],
+  ['it',    'Italian'],
+  ['pt',    'Portuguese'],
+  ['ru',    'Russian'],
+  ['zh',    'Chinese (Simplified)'],
+  ['zh-TW', 'Chinese (Traditional)'],
+  ['ja',    'Japanese'],
+  ['ko',    'Korean'],
+  ['tr',    'Turkish'],
+  ['nl',    'Dutch'],
+  ['pl',    'Polish'],
+  ['sv',    'Swedish'],
+  ['no',    'Norwegian'],
+  ['da',    'Danish'],
+  ['fi',    'Finnish'],
+  ['cs',    'Czech'],
+  ['sk',    'Slovak'],
+  ['ro',    'Romanian'],
+  ['hu',    'Hungarian'],
+  ['el',    'Greek'],
+  ['bg',    'Bulgarian'],
+  ['uk',    'Ukrainian'],
+  ['vi',    'Vietnamese'],
+  ['th',    'Thai'],
+  ['id',    'Indonesian'],
+  ['ms',    'Malay'],
+  ['hi',    'Hindi'],
+  ['bn',    'Bengali'],
+  ['ta',    'Tamil'],
+  ['te',    'Telugu'],
+  ['sw',    'Swahili'],
+  ['af',    'Afrikaans'],
+  ['la',    'Latin'],
+  ['eo',    'Esperanto'],
+  ['cy',    'Welsh'],
+  ['ga',    'Irish'],
+  ['eu',    'Basque'],
+  ['ca',    'Catalan'],
+  ['sr',    'Serbian'],
+  ['hr',    'Croatian'],
+  ['bs',    'Bosnian'],
+  ['mk',    'Macedonian'],
+  ['sq',    'Albanian'],
+  ['lt',    'Lithuanian'],
+  ['lv',    'Latvian'],
+  ['et',    'Estonian'],
+];
+
+const MODELS = {
+  anthropic: [
+    'claude-sonnet-4-5',
+    'claude-opus-4-5',
+    'claude-haiku-4-5',
+  ],
+  openai: [
+    'gpt-4o',
+    'gpt-4-turbo',
+    'gpt-3.5-turbo',
+  ],
+  gemini: [
+    'gemini-1.5-pro',
+    'gemini-1.5-flash',
+  ],
+  ollama: [
+    'llama3',
+    'mistral',
+    'mixtral',
+    'llama2',
+    'phi3',
+    'gemma',
+  ],
+  'openai-custom': [
+    'custom-model',
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let currentJobId = null;
+let pollInterval = null;
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  populateLanguages();
+  onProviderChange();
+  loadStoredKeys();
+  loadStoredGlossary();
+});
+
+function populateLanguages() {
+  ['sourceLang','targetLang','modalSourceLang','modalTargetLang'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    LANGUAGES.forEach(([code, name]) => el.add(new Option(name, code)));
+  });
+  document.getElementById('sourceLang').value = 'en';
+  document.getElementById('targetLang').value = 'ar';
+  document.getElementById('modalSourceLang').value = 'en';
+  document.getElementById('modalTargetLang').value = 'ar';
+}
+
+function onProviderChange() {
+  const provider = document.getElementById('providerSelect').value;
+  const models   = MODELS[provider] || [];
+  const sel      = document.getElementById('modelSelect');
+  sel.innerHTML  = '';
+  models.forEach(m => sel.add(new Option(m, m)));
+
+  const isOllama = provider === 'ollama';
+  const isCustom = provider === 'openai-custom';
+
+  document.getElementById('apiKeyGroup').style.display  = isOllama ? 'none' : '';
+  document.getElementById('baseUrlGroup').style.display = (isOllama || isCustom) ? '' : 'none';
+
+  if (isOllama) document.getElementById('baseUrl').placeholder = 'http://localhost:11434';
+  if (isCustom) document.getElementById('baseUrl').placeholder = 'https://your-api.example.com';
+
+  // Load saved key
+  const keys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
+  const provKey = isCustom ? 'openai' : provider;
+  document.getElementById('apiKey').value = keys[provKey] || '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+}
+
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+
+  document.getElementById('dropZone').innerHTML =
+    `<div class="icon">⏳</div><div>Uploading & extracting <strong>${file.name}</strong>…</div>`;
+
+  try {
+    const res  = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    currentJobId = data.jobId;
+    document.getElementById('fileInfo').style.display = '';
+    document.getElementById('fileName').textContent   = data.filename;
+    document.getElementById('fileStats').textContent  =
+      `${data.sectionCount} sections · ${data.charCount.toLocaleString()} characters`;
+
+    resetDropZone();
+    // Auto-detect source language then show modal
+    await detectAndPrompt();
+    getEstimate();
+  } catch (err) {
+    alert('Upload failed: ' + err.message);
+    resetDropZone();
+  }
+}
+
+function resetDropZone() {
+  document.getElementById('dropZone').innerHTML = `
+    <div class="icon">📄</div>
+    <div>Drop a document here or <strong>click to browse</strong></div>
+    <div class="hint">PDF · DOCX · TXT · EPUB · HTML · SRT</div>`;
+}
+
+async function getEstimate() {
+  if (!currentJobId) return;
+  const provider = getProvider();
+  const model    = document.getElementById('modelSelect').value;
+  const badge    = document.getElementById('estimateBadge');
+  const text     = document.getElementById('estimateText');
+  badge.style.display = 'inline-flex';
+  text.textContent    = 'Estimating…';
+
+  try {
+    const res  = await fetch('/api/estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: currentJobId, provider, model }),
+    });
+    const data = await res.json();
+    text.textContent = provider === 'ollama'
+      ? 'Free (local)'
+      : `~$${data.estimatedCost} · ~${data.totalTokens.toLocaleString()} tokens`;
+  } catch {
+    badge.style.display = 'none';
+  }
+}
+
+function clearJob() {
+  currentJobId = null;
+  stopPolling();
+  document.getElementById('fileInfo').style.display    = 'none';
+  document.getElementById('progressCard').style.display = 'none';
+  document.getElementById('resultCard').style.display   = 'none';
+  document.getElementById('fileInput').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRANSLATION
+// ═══════════════════════════════════════════════════════════════
+async function startTranslation() {
+  if (!currentJobId) return alert('Please upload a file first.');
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const provider = getProvider();
+  if (provider !== 'ollama' && !apiKey) return alert('Please enter your API key.');
+
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('progressCard').style.display = '';
+  document.getElementById('resultCard').style.display   = 'none';
+
+  const glossary = getGlossaryObject();
+
+  const body = {
+    jobId:       currentJobId,
+    provider:    provider === 'openai-custom' ? 'openai' : provider,
+    model:       document.getElementById('modelSelect').value,
+    apiKey,
+    baseUrl:     document.getElementById('baseUrl').value.trim() || undefined,
+    sourceLang:  document.getElementById('sourceLang').value,
+    targetLang:  document.getElementById('targetLang').value,
+    domain:      document.getElementById('domain').value,
+    glossary:    Object.keys(glossary).length ? glossary : undefined,
+    customPrompt:document.getElementById('customPrompt').value.trim() || undefined,
+    chunkSize:   parseInt(document.getElementById('chunkSize').value) || 3000,
+  };
+
+  try {
+    const res  = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    initChunkGrid(data.chunkCount);
+    startPolling();
+  } catch (err) {
+    alert('Failed to start: ' + err.message);
+    document.getElementById('startBtn').disabled = false;
+  }
+}
+
+function initChunkGrid(count) {
+  const grid = document.getElementById('chunkGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('div');
+    d.className = 'chunk-dot';
+    d.id = `chunk-${i}`;
+    d.title = `Chunk ${i + 1}`;
+    grid.appendChild(d);
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  pollInterval = setInterval(pollStatus, 1500);
+  pollStatus();
+}
+
+function stopPolling() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+}
+
+async function pollStatus() {
+  if (!currentJobId) return stopPolling();
+  try {
+    const res  = await fetch(`/api/status/${currentJobId}`);
+    const data = await res.json();
+
+    document.getElementById('progressBar').style.width = data.progress + '%';
+    document.getElementById('progressPct').textContent = data.progress + '%';
+    document.getElementById('progressText').textContent =
+      `${data.done} / ${data.total} chunks  ·  ${data.failed} failed`;
+
+    // Update chunk dots using index from status — we re-fetch chunk statuses via result endpoint
+    updateChunkDots(data);
+
+    if (data.status === 'done') {
+      stopPolling();
+      document.getElementById('cancelBtn').style.display = 'none';
+      if (data.failed > 0) document.getElementById('retryBtn').style.display = '';
+      loadResult();
+    } else if (data.status === 'cancelled') {
+      stopPolling();
+    } else if (data.failed > 0) {
+      document.getElementById('retryBtn').style.display = '';
+    }
+  } catch (err) {
+    console.error('Poll error:', err);
+  }
+}
+
+async function updateChunkDots(statusData) {
+  // Fetch full result to get chunk statuses
+  try {
+    const res  = await fetch(`/api/result/${currentJobId}`);
+    const data = await res.json();
+    data.bilingual.forEach((b, i) => {
+      const dot = document.getElementById(`chunk-${i}`);
+      if (dot) dot.className = 'chunk-dot ' + b.status;
+    });
+  } catch {}
+}
+
+async function cancelTranslation() {
+  if (!currentJobId) return;
+  await fetch(`/api/cancel/${currentJobId}`, { method: 'POST' });
+  stopPolling();
+}
+
+async function retryFailed() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const res = await fetch(`/api/retry-failed/${currentJobId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey, baseUrl: document.getElementById('baseUrl').value.trim() }),
+  });
+  const data = await res.json();
+  if (data.retrying) {
+    document.getElementById('retryBtn').style.display = 'none';
+    startPolling();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESULT
+// ═══════════════════════════════════════════════════════════════
+async function loadResult() {
+  const res  = await fetch(`/api/result/${currentJobId}`);
+  const data = await res.json();
+
+  const rtl = data.rtl;
+  document.getElementById('result-translated').textContent = data.translated;
+  document.getElementById('result-translated').className   = 'result-box' + (rtl ? ' rtl' : '');
+  document.getElementById('result-original').textContent   = data.original;
+
+  const biDiv = document.getElementById('result-bilingual');
+  biDiv.innerHTML = '';
+  data.bilingual.forEach((b, i) => {
+    const pair = document.createElement('div');
+    pair.className = 'bilingual-pair';
+    pair.innerHTML = `
+      <div class="original">${escHtml(b.original)}</div>
+      <div class="translated${rtl ? ' rtl' : ''}">${escHtml(b.translated)}</div>`;
+    biDiv.appendChild(pair);
+  });
+
+  document.getElementById('resultCard').style.display = '';
+}
+
+function showResultTab(tab, btn) {
+  ['translated', 'original', 'bilingual'].forEach(t => {
+    document.getElementById('result-' + t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.result-tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function downloadResult(format) {
+  if (!currentJobId) return;
+  window.location.href = `/api/download/${currentJobId}/${format}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════
+async function loadHistory() {
+  const res  = await fetch('/api/jobs');
+  const jobs = await res.json();
+  const list = document.getElementById('historyList');
+  if (!jobs.length) { list.innerHTML = '<p class="text-muted">No translations yet.</p>'; return; }
+
+  list.innerHTML = '';
+  jobs.forEach(job => {
+    const el  = document.createElement('div');
+    el.className = 'job-item' + (job.id === currentJobId ? ' active' : '');
+    const cfg  = job.config;
+    const langs = cfg ? `${cfg.sourceLang} → ${cfg.targetLang}` : '';
+    const prov  = cfg ? cfg.provider : '';
+    el.innerHTML = `
+      <div class="status-dot ${job.status}"></div>
+      <div>
+        <div class="job-name">${escHtml(job.originalName)}</div>
+        <div class="job-meta">${langs}${prov ? ' · ' + prov : ''} · ${new Date(job.uploadedAt).toLocaleString()}</div>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" onclick="loadHistoryJob('${job.id}',event)">Open</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteJob('${job.id}',event)">✕</button>`;
+    list.appendChild(el);
+  });
+}
+
+async function loadHistoryJob(jobId, e) {
+  e.stopPropagation();
+  currentJobId = jobId;
+  showPage('translate');
+  const res  = await fetch(`/api/result/${jobId}`);
+  const data = await res.json();
+  document.getElementById('fileInfo').style.display = '';
+  document.getElementById('fileName').textContent   = data.filename;
+  document.getElementById('fileStats').textContent  = `(loaded from history)`;
+  loadResult();
+}
+
+async function deleteJob(jobId, e) {
+  e.stopPropagation();
+  if (!confirm('Delete this translation?')) return;
+  await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+  loadHistory();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS — API KEYS
+// ═══════════════════════════════════════════════════════════════
+function loadStoredKeys() {
+  const keys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
+  document.getElementById('s-anthropic').value = keys.anthropic || '';
+  document.getElementById('s-openai').value    = keys.openai    || '';
+  document.getElementById('s-gemini').value    = keys.gemini    || '';
+}
+
+function saveApiKeys() {
+  const keys = {
+    anthropic: document.getElementById('s-anthropic').value.trim(),
+    openai:    document.getElementById('s-openai').value.trim(),
+    gemini:    document.getElementById('s-gemini').value.trim(),
+  };
+  localStorage.setItem('apiKeys', JSON.stringify(keys));
+  onProviderChange(); // refresh current key field
+  alert('API keys saved!');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS — GLOSSARY
+// ═══════════════════════════════════════════════════════════════
+function loadStoredGlossary() {
+  const glossary = JSON.parse(localStorage.getItem('glossary') || '[]');
+  glossary.forEach(([src, tgt]) => addGlossaryRow(src, tgt));
+  if (!glossary.length) addGlossaryRow();
+}
+
+function addGlossaryRow(src = '', tgt = '') {
+  const container = document.getElementById('glossaryRows');
+  const row = document.createElement('div');
+  row.className = 'glossary-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Source term" value="${escHtml(src)}"/>
+    <input type="text" placeholder="Translation" value="${escHtml(tgt)}"/>
+    <button onclick="this.closest('.glossary-row').remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+function saveGlossary() {
+  const rows = document.querySelectorAll('.glossary-row');
+  const pairs = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const src = inputs[0].value.trim();
+    const tgt = inputs[1].value.trim();
+    if (src && tgt) pairs.push([src, tgt]);
+  });
+  localStorage.setItem('glossary', JSON.stringify(pairs));
+  alert('Glossary saved!');
+}
+
+function getGlossaryObject() {
+  const stored = JSON.parse(localStorage.getItem('glossary') || '[]');
+  const obj = {};
+  stored.forEach(([src, tgt]) => { if (src && tgt) obj[src] = tgt; });
+  return obj;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('nav button').forEach((b, i) => {
+    b.classList.toggle('active', ['translate','history','settings'][i] === name);
+  });
+  if (name === 'history') loadHistory();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANGUAGE DETECTION
+// ═══════════════════════════════════════════════════════════════
+async function detectAndPrompt() {
+  if (!currentJobId) return;
+  const provider = getProvider();
+  const model    = document.getElementById('modelSelect').value;
+  const apiKey   = document.getElementById('apiKey').value.trim();
+
+  try {
+    const res  = await fetch('/api/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: currentJobId,
+        provider: provider === 'openai-custom' ? 'openai' : provider,
+        model, apiKey,
+        baseUrl: document.getElementById('baseUrl').value.trim() || undefined,
+      }),
+    });
+    const data = await res.json();
+    const detected = data.detected || 'en';
+
+    // Set sidebar source lang
+    document.getElementById('sourceLang').value = detected;
+
+    // Show badge
+    const langName = LANGUAGES.find(l => l[0] === detected)?.[1] || detected;
+    const badge = document.getElementById('detectedLangBadge');
+    badge.textContent   = `🔍 ${langName}${data.method === 'ai' ? '' : ' (estimated)'}`;
+    badge.style.display = '';
+
+    // Show modal — pre-set detected source
+    document.getElementById('modalSourceLang').value = detected;
+    // Smart default: if detected is English suggest Arabic, else suggest English
+    document.getElementById('modalTargetLang').value  = detected === 'en' ? 'ar' : 'en';
+    showDetectModal();
+  } catch {
+    // Silent fail — user can set languages manually
+  }
+}
+
+function showDetectModal() {
+  const modal = document.getElementById('detectModal');
+  modal.style.display = 'flex';
+}
+
+function closeDetectModal() {
+  document.getElementById('detectModal').style.display = 'none';
+}
+
+function applyModalLangs() {
+  const src = document.getElementById('modalSourceLang').value;
+  const tgt = document.getElementById('modalTargetLang').value;
+  document.getElementById('sourceLang').value = src;
+  document.getElementById('targetLang').value = tgt;
+
+  const srcName = LANGUAGES.find(l => l[0] === src)?.[1] || src;
+  const tgtName = LANGUAGES.find(l => l[0] === tgt)?.[1] || tgt;
+  const badge = document.getElementById('detectedLangBadge');
+  badge.textContent = `🔍 ${srcName} → ${tgtName}`;
+
+  closeDetectModal();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getProvider() {
+  return document.getElementById('providerSelect').value;
+}
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
