@@ -528,11 +528,26 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
         <div class="card-title">🔑 API Keys</div>
         <p class="text-muted" style="margin-bottom:12px">Keys are stored only in your browser's localStorage.</p>
         <div class="form-group"><label>Anthropic API Key</label>
-          <input type="password" id="s-anthropic" placeholder="sk-ant-…"/></div>
+          <div class="flex-row" style="gap:6px">
+            <input type="password" id="s-anthropic" placeholder="sk-ant-api03-…" style="flex:1"/>
+            <button class="btn btn-ghost btn-sm" onclick="testKey('anthropic','s-anthropic','claude-haiku-4-5')">Test</button>
+          </div>
+          <div id="test-result-anthropic" style="font-size:.78rem;margin-top:4px"></div>
+        </div>
         <div class="form-group"><label>OpenAI API Key</label>
-          <input type="password" id="s-openai" placeholder="sk-…"/></div>
+          <div class="flex-row" style="gap:6px">
+            <input type="password" id="s-openai" placeholder="sk-…" style="flex:1"/>
+            <button class="btn btn-ghost btn-sm" onclick="testKey('openai','s-openai','gpt-3.5-turbo')">Test</button>
+          </div>
+          <div id="test-result-openai" style="font-size:.78rem;margin-top:4px"></div>
+        </div>
         <div class="form-group"><label>Google Gemini API Key</label>
-          <input type="password" id="s-gemini" placeholder="AIza…"/></div>
+          <div class="flex-row" style="gap:6px">
+            <input type="password" id="s-gemini" placeholder="AIza…" style="flex:1"/>
+            <button class="btn btn-ghost btn-sm" onclick="testKey('gemini','s-gemini','gemini-1.5-flash')">Test</button>
+          </div>
+          <div id="test-result-gemini" style="font-size:.78rem;margin-top:4px"></div>
+        </div>
         <button class="btn btn-primary btn-sm" onclick="saveApiKeys()">Save Keys</button>
       </div>
 
@@ -1046,6 +1061,28 @@ async function deleteJob(jobId, e) {
 // ═══════════════════════════════════════════════════════════════
 // SETTINGS — API KEYS
 // ═══════════════════════════════════════════════════════════════
+async function testKey(provider, inputId, model) {
+  const apiKey = document.getElementById(inputId).value.trim();
+  const resultEl = document.getElementById('test-result-' + provider);
+  if (!apiKey) { resultEl.innerHTML = '<span style="color:var(--yellow)">⚠ Enter a key first</span>'; return; }
+  resultEl.innerHTML = '<span style="color:var(--muted)">Testing…</span>';
+  try {
+    const res  = await fetch('/api/test-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, model, apiKey }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      resultEl.innerHTML = '<span style="color:var(--green)">✓ Key is valid and working</span>';
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--red)">✗ ${escHtml(data.error)}</span>`;
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<span style="color:var(--red)">✗ ${escHtml(err.message)}</span>`;
+  }
+}
+
 function loadStoredKeys() {
   const keys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
   document.getElementById('s-anthropic').value = keys.anthropic || '';

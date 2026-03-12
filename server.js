@@ -480,6 +480,24 @@ app.get('/api/download/:jobId/:format', (req, res) => {
   res.status(400).json({ error: 'Unsupported format. Use txt or bilingual-txt.' });
 });
 
+// ── POST /api/test-key ────────────────────────────────────────────────────
+// Sends a minimal 1-token request to verify the key works before translating.
+app.post('/api/test-key', async (req, res) => {
+  const { provider, model, apiKey, baseUrl } = req.body;
+  const providerModule = PROVIDERS[provider];
+  if (!providerModule) return res.status(400).json({ ok: false, error: 'Unknown provider' });
+  try {
+    await providerModule.translate({
+      apiKey, model, baseUrl,
+      systemPrompt: 'Reply with one word.',
+      userMessage: 'Say: ok',
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 // ── Serve index.html for all other routes ─────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
