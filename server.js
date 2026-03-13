@@ -8,6 +8,18 @@ const cors = require('cors');
 const app = express();
 const PORT = 3333;
 
+// ── Path resolution: writable dir = exe location when pkg, __dirname in dev ─
+// Inside a pkg exe __dirname is a read-only virtual snapshot, so all writes
+// (uploads, DB) must go to the real directory next to the exe.
+const IS_PKG = typeof process.pkg !== 'undefined';
+const WRITABLE_DIR = IS_PKG ? path.dirname(process.execPath) : __dirname;
+
+// Ensure data dir exists on first run
+const DATA_DIR = path.join(WRITABLE_DIR, 'data');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
 // ── Providers ──────────────────────────────────────────────────────────────
 const anthropicProvider = require('./providers/anthropic');
 const openaiProvider    = require('./providers/openai');
@@ -22,16 +34,17 @@ const txtExtractor  = require('./extractors/txt');
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname)));
+// Serve static assets from the snapshot (__dirname) — index.html lives there
+app.use(express.static(__dirname));
 
 // ── File upload ────────────────────────────────────────────────────────────
 const upload = multer({
-  dest: path.join(__dirname, 'data', 'uploads'),
+  dest: UPLOADS_DIR,
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
 });
 
 // ── Translations DB ────────────────────────────────────────────────────────
-const DB_PATH = path.join(__dirname, 'data', 'translations.json');
+const DB_PATH = path.join(DATA_DIR, 'translations.json');
 
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) return { jobs: {} };

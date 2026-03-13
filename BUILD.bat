@@ -1,10 +1,10 @@
 @echo off
-title Universal AI Translator — Build EXE
+title Universal Translator — Build Electron App
 color 0B
 
 echo.
 echo  ========================================
-echo   Building Universal AI Translator EXE
+echo   Building Universal Translator
 echo  ========================================
 echo.
 
@@ -16,38 +16,27 @@ if %errorlevel% neq 0 (
 )
 
 :: Install dependencies
-echo  [1/4] Installing project dependencies...
+echo  [1/2] Installing dependencies...
 call npm install
 if %errorlevel% neq 0 ( echo  [ERROR] npm install failed. & pause & exit /b 1 )
 
-:: Install pkg globally if not present
-echo  [2/4] Checking for pkg bundler...
-call pkg --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  Installing pkg...
-    call npm install -g pkg
-)
-
-:: Bundle
-echo  [3/4] Bundling into standalone EXE...
-call pkg . --targets node18-win-x64 --output dist\universal-translator.exe --compress GZip
+:: Build portable exe
+echo  [2/2] Building portable EXE...
+set CSC_IDENTITY_AUTO_DISCOVERY=false
+call npx electron-builder --win portable
 
 if %errorlevel% neq 0 (
-    echo.
-    echo  [ERROR] Build failed.  Make sure you have enough disk space and that
-    echo  pkg is installed (npm install -g pkg).
+    echo  [ERROR] Build failed.
     pause & exit /b 1
 )
 
-:: Copy assets
-echo  [4/4] Copying runtime assets to dist\...
-if not exist dist mkdir dist
-xcopy /E /I /Y data dist\data >nul 2>&1
-copy /Y index.html dist\ >nul 2>&1
-
 echo.
 echo  ========================================
-echo   Done!  EXE is at:  dist\universal-translator.exe
+echo   Done!
+echo   EXE:  dist-electron\universal-translator.exe
+echo.
+echo   Double-click the EXE to launch the app.
+echo   It opens in its own window — no browser needed.
 echo  ========================================
 echo.
 pause

@@ -1,5 +1,7 @@
 node_modules/
 data/uploads/
 dist/
+dist-electron/
 *.log
 .env
+New Text Document.txt
