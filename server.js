@@ -597,6 +597,15 @@ function detectByScript(text) {
   return 'en'; // default
 }
 
+// ── POST /api/shutdown ─────────────────────────────────────────────────────
+app.post('/api/shutdown', (req, res) => {
+  res.json({ ok: true });
+  setTimeout(() => {
+    const { exec } = require('child_process');
+    exec('shutdown /s /t 30 /c "Universal Translator: translation complete."');
+  }, 1000);
+});
+
 // ── Start server ───────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n  Universal Translator running at http://localhost:${PORT}\n`);

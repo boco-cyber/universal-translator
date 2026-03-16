@@ -471,6 +471,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
           </button>
           <button class="btn btn-ghost btn-sm" onclick="clearJob()">✕ Clear</button>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.85rem;color:var(--muted);cursor:pointer">
+          <input type="checkbox" id="shutdownAfter" style="accent-color:var(--accent);width:15px;height:15px"/>
+          Shutdown PC when done
+        </label>
       </div>
 
       <!-- Progress -->
@@ -865,14 +869,28 @@ function initChunkGrid(count) {
   }
 }
 
+let wakeLock = null;
+
+async function acquireWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+
 function startPolling() {
   stopPolling();
+  acquireWakeLock();
   pollInterval = setInterval(pollStatus, 1500);
   pollStatus();
 }
 
 function stopPolling() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  releaseWakeLock();
 }
 
 async function pollStatus() {
@@ -901,6 +919,9 @@ async function pollStatus() {
       document.getElementById('cancelBtn').style.display = 'none';
       if (data.failed > 0) document.getElementById('retryBtn').style.display = '';
       loadResult();
+      if (document.getElementById('shutdownAfter').checked) {
+        setTimeout(() => fetch('/api/shutdown', { method: 'POST' }), 3000);
+      }
     } else if (data.status === 'failed') {
       stopPolling();
       showFatalError(data.fatalError || 'Translation stopped due to a fatal error.');
