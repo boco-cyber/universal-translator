@@ -32,11 +32,9 @@ if not exist "node_modules" (
 if not exist "data" mkdir data
 if not exist "data\uploads" mkdir data\uploads
 
-:: Start server
-echo  Starting server on http://localhost:3333
-echo  Opening browser...
+:: Launch Electron desktop app
+echo  Launching desktop app...
 echo.
-start "" "http://localhost:3333"
-node server.js
+node_modules\.bin\electron.cmd .
 
 pause

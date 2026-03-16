@@ -357,6 +357,20 @@ app.get('/api/result/:jobId', (req, res) => {
   });
 });
 
+// ── GET /api/ollama-models ─────────────────────────────────────────────────
+app.get('/api/ollama-models', async (req, res) => {
+  const baseUrl = (req.query.baseUrl || 'http://localhost:11434').replace(/\/$/, '');
+  try {
+    const response = await fetch(`${baseUrl}/api/tags`);
+    if (!response.ok) return res.json({ models: [] });
+    const data = await response.json();
+    const models = (data.models || []).map(m => m.name);
+    res.json({ models });
+  } catch {
+    res.json({ models: [] });
+  }
+});
+
 // ── GET /api/jobs ──────────────────────────────────────────────────────────
 app.get('/api/jobs', (req, res) => {
   const db = loadDB();

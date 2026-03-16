@@ -373,7 +373,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
       </div>
       <div class="form-group" id="baseUrlGroup" style="display:none">
         <label>Base URL</label>
-        <input type="text" id="baseUrl" placeholder="http://localhost:11434"/>
+        <input type="text" id="baseUrl" placeholder="http://localhost:11434" onchange="onProviderChange()"/>
       </div>
     </div>
 
@@ -642,6 +642,8 @@ const MODELS = {
     'gemini-1.5-flash',
   ],
   ollama: [
+    'llama3.2',
+    'llama3:8b',
     'llama3',
     'mistral',
     'mixtral',
@@ -683,13 +685,9 @@ function populateLanguages() {
   document.getElementById('modalTargetLang').value = 'ar';
 }
 
-function onProviderChange() {
+async function onProviderChange() {
   const provider = document.getElementById('providerSelect').value;
-  const models   = MODELS[provider] || [];
   const sel      = document.getElementById('modelSelect');
-  sel.innerHTML  = '';
-  models.forEach(m => sel.add(new Option(m, m)));
-
   const isOllama = provider === 'ollama';
   const isCustom = provider === 'openai-custom';
 
@@ -703,6 +701,27 @@ function onProviderChange() {
   const keys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
   const provKey = isCustom ? 'openai' : provider;
   document.getElementById('apiKey').value = keys[provKey] || '';
+
+  if (isOllama) {
+    sel.innerHTML = '<option disabled>Loading models...</option>';
+    const baseUrl = document.getElementById('baseUrl').value || 'http://localhost:11434';
+    try {
+      const r = await fetch(`/api/ollama-models?baseUrl=${encodeURIComponent(baseUrl)}`);
+      const data = await r.json();
+      sel.innerHTML = '';
+      if (data.models.length > 0) {
+        data.models.forEach(m => sel.add(new Option(m, m)));
+      } else {
+        sel.innerHTML = '<option disabled>No models found — run: ollama pull llama3</option>';
+      }
+    } catch {
+      sel.innerHTML = '<option disabled>Could not reach Ollama</option>';
+    }
+  } else {
+    const models = MODELS[provider] || [];
+    sel.innerHTML = '';
+    models.forEach(m => sel.add(new Option(m, m)));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
